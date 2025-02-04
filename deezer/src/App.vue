@@ -1,19 +1,31 @@
 <script setup>
-import { ref, onMounted } from "vue";
-import { RouterView } from 'vue-router';
-import Navbar from "@/components/Navbar.vue";
-import WelcomeModal from "@/components/WelcomeModal.vue";
+import { RouterView } from "vue-router";
+import { ref, watchEffect } from "vue";
+import { useRouter } from "vue-router";
+import SearchBar from "@/components/SearchBar.vue";
 
-const showWelcomeModal = ref(false);
-
-onMounted(() => {
-  if (!localStorage.getItem("username")) {
-    showWelcomeModal.value = true;
-  }
+const router = useRouter();
+const user = ref({
+  name: localStorage.getItem("username") || "Invitado",
+  avatar: localStorage.getItem("avatar") || "",
+  loggedIn: !!localStorage.getItem("username"),
 });
 
-const checkUser = () => {
-  showWelcomeModal.value = false;
+// Detectar cambios en localStorage en tiempo real
+watchEffect(() => {
+  user.value.name = localStorage.getItem("username") || "Invitado";
+  user.value.avatar = localStorage.getItem("avatar") || "";
+  user.value.loggedIn = !!localStorage.getItem("username");
+});
+
+const logout = () => {
+  localStorage.removeItem("username");
+  localStorage.removeItem("avatar");
+  user.value.loggedIn = false;
+};
+
+const login = () => {
+  router.push("/login");
 };
 </script>
 
@@ -25,12 +37,26 @@ const checkUser = () => {
         <h1>Deezer Music Client</h1>
       </div>
     </header>
-
-    <!-- Welcome Modal -->
-    <WelcomeModal v-show="showWelcomeModal" @user-registered="checkUser" />
     
     <!-- Navbar -->
-    <Navbar v-if="!showWelcomeModal" />
+    <nav class="navbar">
+      <div class="user-info">
+        <img v-if="user.avatar" :src="user.avatar" alt="Avatar" class="avatar" />
+        <span>{{ user.name }}</span>
+      </div>
+      <ul class="nav-links">
+        <li><router-link to="/">Home</router-link></li>
+        <li><router-link to="/playlists">Playlists</router-link></li>
+        <li><router-link to="/search">Buscador</router-link></li>
+      </ul>
+      <button v-if="user.loggedIn" @click="logout">Logout</button>
+      <button v-else @click="login">Iniciar Sesión</button>
+    </nav>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+      <SearchBar @search="handleSearch" />
+    </div>
 
     <!-- Main Content -->
     <main class="container my-4">
@@ -43,6 +69,49 @@ const checkUser = () => {
     </footer>
   </div>
 </template>
+
+<style scoped>
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #282c34;
+  padding: 10px 20px;
+  color: white;
+}
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 15px;
+}
+.nav-links a {
+  color: white;
+  text-decoration: none;
+}
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+button {
+  background: #007bff;
+  border: none;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+button:hover {
+  background: #0056b3;
+}
+.search-container {
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  background: #f8f9fa;
+}
+</style>
 
 <style lang="scss">
 nav {

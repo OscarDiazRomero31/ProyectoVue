@@ -1,79 +1,107 @@
-<template>
-  <div class="search-view">
-    <h1>Resultados de búsqueda</h1>
-    <SearchBar @search="handleSearch" />
-    <SearchResults v-if="results" :results="results" />
-  </div>
-</template>
+<script setup>
+import { RouterView } from "vue-router";
+import { ref } from "vue";
+import { useRouter } from "vue-router";
 
-<script>
-import SearchBar from "@/components/SearchBar.vue";
-import SearchResults from "@/components/SearchResults.vue";
-import { useRoute, useRouter } from "vue-router";
-import { ref, watch } from "vue";
+const router = useRouter();
+const user = ref({
+  name: localStorage.getItem("username") || "Invitado",
+  avatar: localStorage.getItem("avatar") || "",
+  loggedIn: !!localStorage.getItem("username"),
+});
 
-export default {
-  components: {
-    SearchBar,
-    SearchResults,
-  },
-  setup() {
-    const route = useRoute();
-    const router = useRouter();
-    const searchQuery = ref(route.query.q || "");
-    const results = ref(null);
+const logout = () => {
+  localStorage.removeItem("username");
+  localStorage.removeItem("avatar");
+  user.value.name = "Invitado";
+  user.value.avatar = "";
+  user.value.loggedIn = false;
+};
 
-    const fetchResults = async () => {
-      if (!searchQuery.value) return;
-
-      try {
-        console.log("Realizando búsqueda para:", searchQuery.value);
-        const response = await fetch(`https://cors-anywhere.herokuapp.com/https://api.deezer.com/search?q=${searchQuery.value}`);
-        console.log("Respuesta de la API:", response);
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log("Datos obtenidos de Deezer:", data);
-
-        results.value = {
-          songs: data.data || [],
-          albums: [],
-          artists: [],
-        };
-
-        console.log("Resultados guardados en Vue:", results.value);
-      } catch (error) {
-        console.error("Error al obtener resultados:", error);
-      }
-    };
-
-    watch(route, async () => {
-      searchQuery.value = route.query.q || "";
-      await fetchResults();
-    });
-
-    return { searchQuery, results, handleSearch: (query) => router.push({ path: "/search", query: { q: query } }) };
-  },
+const login = () => {
+  router.push("/login");
 };
 </script>
 
+<template>
+  <div id="app">
+    <!-- Header -->
+    <header class="bg-primary text-white py-3">
+      <div class="container text-center">
+        <h1>Deezer Music Client</h1>
+      </div>
+    </header>
+    
+    <!-- Navbar -->
+    <nav class="navbar">
+      <div class="user-info">
+        <img v-if="user.avatar" :src="user.avatar" alt="Avatar" class="avatar" />
+        <span v-if="user.name">{{ user.name }}</span>
+      </div>
+      <ul class="nav-links">
+        <li><router-link to="/">Home</router-link></li>
+        <li><router-link to="/playlists">Playlists</router-link></li>
+        <li><router-link to="/search">Buscador</router-link></li>
+      </ul>
+      <button v-if="user.loggedIn" @click="logout">Logout</button>
+      <button v-else @click="login">Iniciar Sesión</button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container my-4">
+      <router-view />
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white text-center py-3">
+      <p>&copy; 2024 Deezer Music Client. Todos los derechos reservados.</p>
+    </footer>
+  </div>
+</template>
+
 <style scoped>
-.search-view {
-  text-align: center;
-  padding: 20px;
-}
-
-.audio-container {
-  width: 100%;
+.navbar {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #282c34;
+  padding: 10px 20px;
+  color: white;
+}
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 15px;
+}
+.nav-links a {
+  color: white;
+  text-decoration: none;
+}
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+</style>
+
+<style lang="scss">
+nav {
+  border: 1px solid gray;
 }
 
-.audio-container audio {
-  width: 100%;
-  border-radius: 5px;
+$hover-bg-color: #007bff;
+$hover-text-color: #ffffff;
+
+li {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+
+  &:hover {
+    background-color: $hover-bg-color;
+    color: $hover-text-color;
+    font-weight: bold;
+  }
 }
 </style>
