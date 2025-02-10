@@ -1,50 +1,30 @@
-import { createRouter, createWebHistory } from "vue-router";
-import HomeView from "@/views/HomeView.vue";
-import LoginView from "@/views/LoginView.vue";
-import SearchView from "@/views/SearchView.vue";
-import PlaylistsView from "@/views/PlaylistsView.vue";
+import { createRouter, createWebHistory } from 'vue-router'
+
+import HomeView from '../views/HomeView.vue';
+import PlaylistsView from '../views/PlaylistsView.vue';
+import SearchView from '../views/SearchView.vue';
 
 const routes = [
-  { path: "/", redirect: "/home" },
-  { path: "/login", component: LoginView },
   {
-    path: "/home",
+    path: '/',
+    name: 'Home',
     component: HomeView,
-    beforeEnter: (to, from, next) => {
-      if (!localStorage.getItem("username")) {
-        next("/login");
-      } else {
-        next();
-      }
-    },
   },
   {
-    path: "/search",
-    component: SearchView,
-    beforeEnter: (to, from, next) => {
-      if (!localStorage.getItem("username")) {
-        next("/login");
-      } else {
-        next();
-      }
-    },
-  },
-  {
-    path: "/playlists",
+    path: '/playlists',
+    name: 'Playlists',
     component: PlaylistsView,
-    beforeEnter: (to, from, next) => {
-      if (!localStorage.getItem("username")) {
-        next("/login");
-      } else {
-        next();
-      }
-    },
+  },
+  {
+    path: '/search',
+    name: 'Buscador',
+    component: SearchView,
   },
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-});
+})
 
-export default router;
+export default router

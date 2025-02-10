@@ -1,107 +1,104 @@
-<script setup>
-import { RouterView } from "vue-router";
-import { ref } from "vue";
-import { useRouter } from "vue-router";
-
-const router = useRouter();
-const user = ref({
-  name: localStorage.getItem("username") || "Invitado",
-  avatar: localStorage.getItem("avatar") || "",
-  loggedIn: !!localStorage.getItem("username"),
-});
-
-const logout = () => {
-  localStorage.removeItem("username");
-  localStorage.removeItem("avatar");
-  user.value.name = "Invitado";
-  user.value.avatar = "";
-  user.value.loggedIn = false;
-};
-
-const login = () => {
-  router.push("/login");
-};
-</script>
-
 <template>
-  <div id="app">
-    <!-- Header -->
-    <header class="bg-primary text-white py-3">
-      <div class="container text-center">
-        <h1>Deezer Music Client</h1>
-      </div>
-    </header>
-    
-    <!-- Navbar -->
-    <nav class="navbar">
-      <div class="user-info">
-        <img v-if="user.avatar" :src="user.avatar" alt="Avatar" class="avatar" />
-        <span v-if="user.name">{{ user.name }}</span>
-      </div>
-      <ul class="nav-links">
-        <li><router-link to="/">Home</router-link></li>
-        <li><router-link to="/playlists">Playlists</router-link></li>
-        <li><router-link to="/search">Buscador</router-link></li>
-      </ul>
-      <button v-if="user.loggedIn" @click="logout">Logout</button>
-      <button v-else @click="login">Iniciar Sesión</button>
-    </nav>
-
-    <!-- Main Content -->
-    <main class="container my-4">
-      <router-view />
-    </main>
-
-    <!-- Footer -->
-    <footer class="bg-dark text-white text-center py-3">
-      <p>&copy; 2024 Deezer Music Client. Todos los derechos reservados.</p>
-    </footer>
+  <div>
+    <h1>Playlists</h1>
+    <p>Gestiona tus playlists aquí.</p>
   </div>
+<!-- Integrar el componente Pinia -->
+<div v-if="playlist.length > 0" class="playlist">
+  <transition-group name="fade" tag="div">
+    <div v-for="song in playlist" :key="song.id" class="song-item">
+      <img :src="song.album.cover" alt="Portada del álbum" class="album-cover" />
+      <div class="song-info">
+        <h3>{{ song.title }}</h3>
+        <p>{{ song.artist.name }}</p>
+      </div>
+      <div class="song-actions">
+        <button class="deleteBtn" @click="removeFromFavorites(song.id)">Eliminar</button>
+        <button @click="playSong">Reproducir</button>
+      </div>
+    </div>
+  </transition-group>
+  </div>
+  <p v-else>No hay canciones en tu lista de favoritos.</p>  
 </template>
 
+<script setup>
+// Accede a la store
+import { useFavoritesStore } from '@/stores/favorites'; 
+import { computed } from 'vue';
+// Vincula datos de la store
+const favoritesStore = useFavoritesStore();
+//const playlist = ref(favoritesStore.playlist);
+/*
+No funcionará porque favoritesStore.favorites es array reactivo manejado internamente por Pinia. Al envolverlo en un ref, estás creando una nueva referencia que no se sincronizará automáticamente con el estado del Store.
+Para resolver esto, usa una propiedad computada en lugar de asignar directamente el estado. De esta forma, la propiedad computada se actualizará automáticamente cuando cambie el estado del Store y los componentes que la utilicen se volverán a renderizar.
+*/ 
+const playlist = computed(() => favoritesStore.playlist);
+
+const removeFromFavorites = (songId) => {
+favoritesStore.removeSong(songId);
+};
+
+const playSong = () => {
+// Funcionalidad futura para reproducir canción
+console.log("Reproducir canción");
+};
+
+</script>
+
 <style scoped>
-.navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #282c34;
-  padding: 10px 20px;
-  color: white;
+h1 {
+  color: #28a745;
 }
-.nav-links {
-  list-style: none;
-  display: flex;
-  gap: 15px;
+.playlist {
+display: flex;
+flex-direction: column;
+gap: 8px;
 }
-.nav-links a {
-  color: white;
-  text-decoration: none;
+.song-item {
+display: flex;
+align-items: center;
+border-bottom: 1px solid #ccc;
+padding: 8px 16px;
+width: 100%;
+box-sizing: border-box;
 }
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  margin-right: 10px;
+.album-cover {
+width: 48px;
+height: 48px;
+border-radius: 4px;
+margin-right: 16px;
 }
-</style>
-
-<style lang="scss">
-nav {
-  border: 1px solid gray;
+.song-info {
+display: flex;
+flex-direction: column;
+flex: 1;
 }
-
-$hover-bg-color: #007bff;
-$hover-text-color: #ffffff;
-
-li {
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s, color 0.3s;
-
-  &:hover {
-    background-color: $hover-bg-color;
-    color: $hover-text-color;
-    font-weight: bold;
-  }
+.song-actions {
+display: flex;
+align-items: center;
+gap: 8px;
+}
+button {
+background-color: #007bff;
+color: #fff;
+border: none;
+padding: 6px 10px;
+border-radius: 4px;
+cursor: pointer;
+font-size: 14px;
+}
+button:hover {
+background-color: #0056b3;
+}
+.deleteBtn {
+background-color: #dc3545;
+}
+/* Transitions */
+.fade-enter-active, .fade-leave-active {
+transition: opacity 0.5s;
+}
+.fade-enter-from, .fade-leave-to {
+opacity: 0;
 }
 </style>

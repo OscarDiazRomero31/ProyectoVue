@@ -1,32 +1,7 @@
 <script setup>
-import { RouterView } from "vue-router";
-import { ref, watchEffect } from "vue";
-import { useRouter } from "vue-router";
-import SearchBar from "@/components/SearchBar.vue";
+import { RouterLink, RouterView } from 'vue-router'
+import Menu from "./components/menu.vue";
 
-const router = useRouter();
-const user = ref({
-  name: localStorage.getItem("username") || "Invitado",
-  avatar: localStorage.getItem("avatar") || "",
-  loggedIn: !!localStorage.getItem("username"),
-});
-
-// Detectar cambios en localStorage en tiempo real
-watchEffect(() => {
-  user.value.name = localStorage.getItem("username") || "Invitado";
-  user.value.avatar = localStorage.getItem("avatar") || "";
-  user.value.loggedIn = !!localStorage.getItem("username");
-});
-
-const logout = () => {
-  localStorage.removeItem("username");
-  localStorage.removeItem("avatar");
-  user.value.loggedIn = false;
-};
-
-const login = () => {
-  router.push("/login");
-};
 </script>
 
 <template>
@@ -37,26 +12,9 @@ const login = () => {
         <h1>Deezer Music Client</h1>
       </div>
     </header>
-    
-    <!-- Navbar -->
-    <nav class="navbar">
-      <div class="user-info">
-        <img v-if="user.avatar" :src="user.avatar" alt="Avatar" class="avatar" />
-        <span>{{ user.name }}</span>
-      </div>
-      <ul class="nav-links">
-        <li><router-link to="/">Home</router-link></li>
-        <li><router-link to="/playlists">Playlists</router-link></li>
-        <li><router-link to="/search">Buscador</router-link></li>
-      </ul>
-      <button v-if="user.loggedIn" @click="logout">Logout</button>
-      <button v-else @click="login">Iniciar Sesión</button>
-    </nav>
 
-    <!-- Search Bar -->
-    <div class="search-container">
-      <SearchBar @search="handleSearch" />
-    </div>
+    <!-- Menu -->
+    <Menu />
 
     <!-- Main Content -->
     <main class="container my-4">
@@ -70,66 +28,28 @@ const login = () => {
   </div>
 </template>
 
-<style scoped>
-.navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #282c34;
-  padding: 10px 20px;
-  color: white;
-}
-.nav-links {
-  list-style: none;
-  display: flex;
-  gap: 15px;
-}
-.nav-links a {
-  color: white;
-  text-decoration: none;
-}
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  margin-right: 10px;
-}
-button {
-  background: #007bff;
-  border: none;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-button:hover {
-  background: #0056b3;
-}
-.search-container {
-  display: flex;
-  justify-content: center;
-  padding: 10px;
-  background: #f8f9fa;
-}
-</style>
+<script setup>
+
+</script>
+
 
 <style lang="scss">
-nav {
+nav{
   border: 1px solid gray;
 }
-
 $hover-bg-color: #007bff;
 $hover-text-color: #ffffff;
-
 li {
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s, color 0.3s;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
 
-  &:hover {
-    background-color: $hover-bg-color;
-    color: $hover-text-color;
-    font-weight: bold;
+    &:hover {
+      background-color: $hover-bg-color;
+      color: $hover-text-color;
+      font-weight: bold;
+    }
   }
-}
+
+
 </style>
