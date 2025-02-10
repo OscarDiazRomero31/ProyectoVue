@@ -1,104 +1,197 @@
 <template>
   <div>
-    <h1>Playlists</h1>
-    <p>Gestiona tus playlists aquí.</p>
-  </div>
-<!-- Integrar el componente Pinia -->
-<div v-if="playlist.length > 0" class="playlist">
-  <transition-group name="fade" tag="div">
-    <div v-for="song in playlist" :key="song.id" class="song-item">
-      <img :src="song.album.cover" alt="Portada del álbum" class="album-cover" />
-      <div class="song-info">
-        <h3>{{ song.title }}</h3>
-        <p>{{ song.artist.name }}</p>
+    <h1>Búsqueda de canciones en Deezer</h1>
+    <p>
+      Para que salgan los resultados debes entrar en
+      <a href="https://cors-anywhere.herokuapp.com/corsdemo"
+        >https://cors-anywhere.herokuapp.com/corsdemo</a
+      >
+    </p>
+    <!-- Componente hijo -->
+    <SearchBar @results="handleResults" />
+    <hr />
+    <div class="filters">
+      <div class="filter-item">
+        <label>
+          <input type="checkbox" v-model="sortAscending" aria-label="Ordenar ascendente" />
+          Ordenar por nombre (ascendente)
+        </label>
       </div>
-      <div class="song-actions">
-        <button class="deleteBtn" @click="removeFromFavorites(song.id)">Eliminar</button>
-        <button @click="playSong">Reproducir</button>
+      <div class="filter-item">
+        <label>
+          Duración mínima:
+          <div class="duration-inputs">
+            <input type="number" v-model="minDurationMinutes" placeholder="Min" aria-label="Filtrar por duración (minutos)" class="short-input"/>
+            <span>:</span>
+            <input type="number" v-model="minDurationSeconds" placeholder="Seg" aria-label="Filtrar por duración (segundos)" class="short-input"/>
+          </div>
+        </label>
+      </div>
+      <div class="filter-item">
+        <label>
+          Artista:
+          <input type="text" v-model="artistFilter" placeholder="Nombre del artista" aria-label="Filtrar por artista" />
+        </label>
       </div>
     </div>
-  </transition-group>
+    <!-- Lista de canciones -->
+    <ul v-if="filteredAndSortedSongs.length > 0">
+      <li v-for="song in filteredAndSortedSongs" :key="song.id" class="song-item">
+        <img :src="song.album.cover_medium" alt="Portada del álbum" class="album-cover" />
+        <div class="song-info">
+          <strong>{{ song.title }}</strong> - {{ song.artist.name }} - {{ song.album.title }}
+          <p>Duración: {{ formatDuration(song.duration) }}</p>
+          <p><a :href="song.link" target="_blank" class="listen-link">Escuchar completa</a></p>
+          <i 
+            :class="['bi', isFavorite(song.id) ? 'bi-heart-fill' : 'bi-heart']" 
+            @click="toggleFavorite(song)"
+            :style="{ color: isFavorite(song.id) ? 'red' : 'black', cursor: 'pointer' }"
+          ></i>
+        </div>
+      </li>
+    </ul>
+    <p v-else>No hay resultados para mostrar</p>
   </div>
-  <p v-else>No hay canciones en tu lista de favoritos.</p>  
 </template>
 
 <script setup>
-// Accede a la store
-import { useFavoritesStore } from '@/stores/favorites'; 
-import { computed } from 'vue';
-// Vincula datos de la store
+import { ref, computed, onMounted } from "vue";
+import { useRoute } from "vue-router";
+import SearchBar from "../components/SearchBar.vue"; // Importa el componente hijo
+import { useFavoritesStore } from "../stores/favorites"; // Importa la store de favoritos
+
+const route = useRoute();
 const favoritesStore = useFavoritesStore();
-//const playlist = ref(favoritesStore.playlist);
-/*
-No funcionará porque favoritesStore.favorites es array reactivo manejado internamente por Pinia. Al envolverlo en un ref, estás creando una nueva referencia que no se sincronizará automáticamente con el estado del Store.
-Para resolver esto, usa una propiedad computada en lugar de asignar directamente el estado. De esta forma, la propiedad computada se actualizará automáticamente cuando cambie el estado del Store y los componentes que la utilicen se volverán a renderizar.
-*/ 
-const playlist = computed(() => favoritesStore.playlist);
 
-const removeFromFavorites = (songId) => {
-favoritesStore.removeSong(songId);
+const songs = ref([]); // Estado para almacenar la lista de canciones
+const sortAscending = ref(false); // Controla el orden ascendente o descendente
+const minDurationMinutes = ref(null); // Minutos mínimos para el filtro de duración
+const minDurationSeconds = ref(null); // Segundos mínimos para el filtro de duración
+const artistFilter = ref(""); // Filtro por artista
+
+// Función para formatear la duración de la canción
+const formatDuration = (duration) => {
+  const minutes = Math.floor(duration / 60);
+  const seconds = duration % 60;
+  return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 };
 
-const playSong = () => {
-// Funcionalidad futura para reproducir canción
-console.log("Reproducir canción");
+// Lista filtrada y ordenada
+const filteredAndSortedSongs = computed(() => {
+  let result = [...songs.value];
+
+  // Filtrar por duración mínima
+  const minDuration = minDurationMinutes.value * 60 + minDurationSeconds.value;
+  if (minDuration > 0) {
+    result = result.filter(song => song.duration && song.duration >= minDuration);
+  }
+
+  // Filtrar por artista
+  if (artistFilter.value.trim() !== "") {
+    result = result.filter(song => song.artist.name.toLowerCase().includes(artistFilter.value.trim().toLowerCase()));
+  }
+  
+  // Ordenar por nombre
+  if (sortAscending.value) {
+    result.sort((a, b) => a.title.localeCompare(b.title));
+  } else {
+    result.sort((a, b) => b.title.localeCompare(a.title));
+  }
+
+  return result;
+});
+
+// Maneja los resultados emitidos por el componente hijo
+const handleResults = (data) => {
+  console.log("Resultados recibidos:", data); // Añadir este log
+  songs.value = data; // Actualiza la lista de canciones
 };
 
+// Añadir o quitar canción de favoritos
+const toggleFavorite = (song) => {
+  if (favoritesStore.isFavorite(song.id)) {
+    favoritesStore.removeSong(song.id);
+  } else {
+    favoritesStore.addSong(song);
+  }
+};
+
+// Verificar si una canción es favorita
+const isFavorite = (id) => favoritesStore.isFavorite(id);
+
+// Realizar búsqueda al montar el componente si hay un parámetro de búsqueda
+onMounted(() => {
+  const query = route.query.q;
+  if (query) {
+    searchDeezer(query);
+  }
+});
+
+// Función para realizar la búsqueda
+const searchDeezer = async (query) => {
+  if (query.trim() === "") return; // Evita búsquedas vacías
+  const url = `https://cors-anywhere.herokuapp.com/https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("Error al buscar en Deezer");
+    }
+    const data = await response.json();
+    console.log("Resultados de la búsqueda:", data); // Añadir este log para inspeccionar la respuesta
+    songs.value = data.data; // Actualiza la lista de canciones
+  } catch (error) {
+    console.error(error.message);
+  }
+};
 </script>
 
 <style scoped>
 h1 {
-  color: #28a745;
+  color: #dc3545;
 }
-.playlist {
-display: flex;
-flex-direction: column;
-gap: 8px;
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px; /* Espaciado entre los filtros */
+  margin-bottom: 20px;
+}
+.filter-item {
+  flex: 1 1 200px; /* Ajusta el tamaño mínimo de los filtros */
+}
+.short-input {
+  width: 60px; /* Ajusta el ancho de los campos de entrada */
 }
 .song-item {
-display: flex;
-align-items: center;
-border-bottom: 1px solid #ccc;
-padding: 8px 16px;
-width: 100%;
-box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  background-color: #f8f9fa;
 }
 .album-cover {
-width: 48px;
-height: 48px;
-border-radius: 4px;
-margin-right: 16px;
+  width: 85px; 
+  height: 85px;
+  margin-right: 20px;
+  border-radius: 5px;
 }
 .song-info {
-display: flex;
-flex-direction: column;
-flex: 1;
+  flex: 1;
 }
-.song-actions {
-display: flex;
-align-items: center;
-gap: 8px;
+.song-info p {
+  margin: 5px 0;
 }
-button {
-background-color: #007bff;
-color: #fff;
-border: none;
-padding: 6px 10px;
-border-radius: 4px;
-cursor: pointer;
-font-size: 14px;
+.listen-link {
+  color: #007bff; /* Color del enlace */
+  text-decoration: none; /* Quitar subrayado */
 }
-button:hover {
-background-color: #0056b3;
+.listen-link:hover {
+  color: #0056b3; /* Color del enlace al pasar el ratón */
+  text-decoration: underline; /* Subrayado al pasar el ratón */
 }
-.deleteBtn {
-background-color: #dc3545;
-}
-/* Transitions */
-.fade-enter-active, .fade-leave-active {
-transition: opacity 0.5s;
-}
-.fade-enter-from, .fade-leave-to {
-opacity: 0;
+li:hover {
+  background-color: blue;
+  color: white; /* Opcional: para cambiar el color del texto también */
 }
 </style>

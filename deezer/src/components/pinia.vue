@@ -1,4 +1,3 @@
-
 <template>
   <div>
     <h1>🍍 Gestión de estados con Pinia</h1>
@@ -28,4 +27,3 @@ const email = computed({
 const emailDomain = computed(() => userStore.emailDomain);
 const clearEmail = userStore.clearEmail;
 </script>
-
