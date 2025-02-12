@@ -1,65 +1,63 @@
+<script setup>
+import { ref, onMounted, defineEmits } from 'vue';
+
+// Emitir evento para cerrar sesión
+const emit = defineEmits(['logout']);
+
+// Estado del usuario
+const user = ref({ name: 'Invitado', avatar: 'https://via.placeholder.com/40' });
+
+// Cargar el usuario guardado
+onMounted(() => {
+  const savedUser = localStorage.getItem('user');
+  if (savedUser) {
+    user.value = JSON.parse(savedUser);
+  }
+});
+</script>
+
 <template>
-  <nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <div class="container-fluid">
-      <router-link class="navbar-brand d-none" to="/">🎵 Deezer Client</router-link>
-
-      <button
-        class="navbar-toggler"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#navbarNav"
-        aria-controls="navbarNav"
-        aria-expanded="false"
-        aria-label="Toggle navigation"
-      >
-        <span class="navbar-toggler-icon"></span>
-      </button>
-
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto me-4">
-          <li class="nav-item">
-            <router-link class="nav-link" to="/">Home</router-link>
-          </li>
-          <li class="nav-item">
-            <router-link class="nav-link" to="/playlists">Playlists</router-link>
-          </li>
-          <li class="nav-item">
-            <router-link class="nav-link" to="/search">Buscador</router-link>
-          </li>
-        </ul>
-
-        <!-- Sección de usuario -->
-        <div v-if="user" class="d-flex align-items-center">
-          <img :src="user.avatar" alt="Avatar" class="rounded-circle me-2" width="40" height="40">
-          <span class="me-3 user-name">{{ user.name }}</span>
-          <button @click="logout" class="btn btn-danger btn-sm">Logout</button>
-        </div>
-      </div>
+  <nav class="navbar">
+    <div class="logo">
+      🎵 Deezer Music Client
+    </div>
+    <ul class="nav-links">
+      <li><router-link to="/">Inicio</router-link></li>
+      <li><router-link to="/playlists">Playlists</router-link></li>
+      <li><router-link to="/search">Buscador</router-link></li>
+    </ul>
+    <div class="user-info">
+      <img :src="user.avatar" alt="Avatar" class="avatar" />
+      <span>{{ user.name }}</span>
+      <button @click="emit('logout')">Logout</button>
     </div>
   </nav>
 </template>
 
-<script setup>
-import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
-
-// Simulación de usuario logueado (esto podría venir de Vuex, Pinia o Firebase)
-const user = ref({
-  name: "Oscar Romero",
-  avatar: "https://i.pravatar.cc/3"
-})
-
-const logout = () => {
-  console.log("Cerrando sesión...")
-  user.value = null // Aquí pondrías la lógica real de logout
-}
-</script>
-
 <style scoped>
-.navbar-brand {
-  font-weight: bold;
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background-color: #282c34;
+  color: white;
 }
-.user-name {
-  color: black; /* Cambia el color del nombre del usuario a negro */
+
+.nav-links {
+  display: flex;
+  gap: 20px;
+}
+
+.nav-links a {
+  color: white;
+  text-decoration: none;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 10px;
 }
 </style>

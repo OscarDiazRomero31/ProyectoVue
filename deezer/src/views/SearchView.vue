@@ -1,113 +1,78 @@
 <template>
   <div>
-    <h1>Búsqueda de canciones en Deezer</h1>
+    <h1>Buscador</h1>
+    <p>Busca canciones, artistas o álbumes.</p>
+    <p>
+      En esta sección ya se ha configurado una llamada a la API pública de
+      Deezer.
+    </p>
     <p>
       Para que salgan los resultados debes entrar en
       <a href="https://cors-anywhere.herokuapp.com/corsdemo"
         >https://cors-anywhere.herokuapp.com/corsdemo</a
       >
     </p>
-    <!-- Componente hijo -->
-    <SearchBar @results="handleResults" />
-    <hr />
-    <div class="filters">
-      <div class="filter-item">
-        <label>
-          <input type="checkbox" v-model="sortAscending" aria-label="Ordenar ascendente" />
-          Ordenar por nombre (ascendente)
-        </label>
-      </div>
-      <div class="filter-item">
-        <label>
-          Duración mínima:
-          <div class="duration-inputs">
-            <input type="number" v-model="minDurationMinutes" placeholder="Min" aria-label="Filtrar por duración (minutos)" class="short-input"/>
-            <span>:</span>
-            <input type="number" v-model="minDurationSeconds" placeholder="Seg" aria-label="Filtrar por duración (segundos)" class="short-input"/>
-          </div>
-        </label>
-      </div>
-      <div class="filter-item">
-        <label>
-          Artista:
-          <input type="text" v-model="artistFilter" placeholder="Nombre del artista" aria-label="Filtrar por artista" />
-        </label>
+  </div>
+  <div class="search-page">
+    <h1>Resultados del Álbum</h1>
+    <div class="album-info">
+      <h2>{{ albumData.title }}</h2>
+      <img :src="albumData.cover_medium" alt="Portada del álbum" />
+      <p><strong>Artista:</strong> {{ albumData.artist?.name }}</p>
+      <p><strong>Fecha de lanzamiento:</strong> {{ albumData.release_date }}</p>
+    </div>
+
+    <div class="songs">
+      <h3>Canciones</h3>
+      <div class="song-cards">
+        <div
+          v-for="song in albumData.tracks?.data"
+          :key="song.id"
+          class="song-card"
+        >
+          <p>
+            <strong>{{ song.title }}</strong>
+          </p>
+          <audio :src="song.preview" controls></audio>
+          <p>
+            <button @click="toggleFavorite(song)">
+              {{
+                isFavorite(song.id)
+                  ? "Quitar de favoritos"
+                  : "Añadir a favoritos"
+              }}
+            </button>
+          </p>
+        </div>
       </div>
     </div>
-    <!-- Lista de canciones -->
-    <ul v-if="filteredAndSortedSongs.length > 0">
-      <li v-for="song in filteredAndSortedSongs" :key="song.id" class="song-item">
-        <img :src="song.album.cover_medium" alt="Portada del álbum" class="album-cover" />
-        <div class="song-info">
-          <strong>{{ song.title }}</strong> - {{ song.artist.name }} - {{ song.album.title }}
-          <p>Duración: {{ formatDuration(song.duration) }}</p>
-          <p><a :href="song.link" target="_blank" class="listen-link">Escuchar completa</a></p>
-          <i 
-            :class="['bi', isFavorite(song.id) ? 'bi-heart-fill' : 'bi-heart']" 
-            @click="toggleFavorite(song)"
-            :style="{ color: isFavorite(song.id) ? 'red' : 'black', cursor: 'pointer' }"
-          ></i>
-        </div>
-      </li>
-    </ul>
-    <p v-else>No hay resultados para mostrar</p>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useRoute } from "vue-router";
-import SearchBar from "../components/SearchBar.vue"; // Importa el componente hijo
-import { useFavoritesStore } from "../stores/favorites"; // Importa la store de favoritos
+import { ref, onMounted } from "vue";
+import { useFavoritesStore } from '@/stores/favorites';
 
-const route = useRoute();
+const albumData = ref({}); // Guardará los datos del álbum
 const favoritesStore = useFavoritesStore();
 
-const songs = ref([]); // Estado para almacenar la lista de canciones
-const sortAscending = ref(false); // Controla el orden ascendente o descendente
-const minDurationMinutes = ref(null); // Minutos mínimos para el filtro de duración
-const minDurationSeconds = ref(null); // Segundos mínimos para el filtro de duración
-const artistFilter = ref(""); // Filtro por artista
 
-// Función para formatear la duración de la canción
-const formatDuration = (duration) => {
-  const minutes = Math.floor(duration / 60);
-  const seconds = duration % 60;
-  return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+// Función para obtener datos del álbum desde la API de Deezer
+const fetchAlbumData = async () => {
+  try {
+    const response = await fetch(
+      "https://cors-anywhere.herokuapp.com/https://api.deezer.com/album/586206062"
+    );
+    if (!response.ok) throw new Error("Error al obtener los datos");
+    albumData.value = await response.json();
+  } catch (error) {
+    console.error("Error:", error);
+  }
 };
 
-// Lista filtrada y ordenada
-const filteredAndSortedSongs = computed(() => {
-  let result = [...songs.value];
+// Llama a la función al montar el componente
+onMounted(fetchAlbumData);
 
-  // Filtrar por duración mínima
-  const minDuration = minDurationMinutes.value * 60 + minDurationSeconds.value;
-  if (minDuration > 0) {
-    result = result.filter(song => song.duration && song.duration >= minDuration);
-  }
-
-  // Filtrar por artista
-  if (artistFilter.value.trim() !== "") {
-    result = result.filter(song => song.artist.name.toLowerCase().includes(artistFilter.value.trim().toLowerCase()));
-  }
-  
-  // Ordenar por nombre
-  if (sortAscending.value) {
-    result.sort((a, b) => a.title.localeCompare(b.title));
-  } else {
-    result.sort((a, b) => b.title.localeCompare(a.title));
-  }
-
-  return result;
-});
-
-// Maneja los resultados emitidos por el componente hijo
-const handleResults = (data) => {
-  console.log("Resultados recibidos:", data); // Añadir este log
-  songs.value = data; // Actualiza la lista de canciones
-};
-
-// Añadir o quitar canción de favoritos
 const toggleFavorite = (song) => {
   if (favoritesStore.isFavorite(song.id)) {
     favoritesStore.removeSong(song.id);
@@ -116,82 +81,53 @@ const toggleFavorite = (song) => {
   }
 };
 
-// Verificar si una canción es favorita
 const isFavorite = (id) => favoritesStore.isFavorite(id);
 
-// Realizar búsqueda al montar el componente si hay un parámetro de búsqueda
-onMounted(() => {
-  const query = route.query.q;
-  if (query) {
-    searchDeezer(query);
-  }
-});
-
-// Función para realizar la búsqueda
-const searchDeezer = async (query) => {
-  if (query.trim() === "") return; // Evita búsquedas vacías
-  const url = `https://cors-anywhere.herokuapp.com/https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error("Error al buscar en Deezer");
-    }
-    const data = await response.json();
-    console.log("Resultados de la búsqueda:", data); // Añadir este log para inspeccionar la respuesta
-    songs.value = data.data; // Actualiza la lista de canciones
-  } catch (error) {
-    console.error(error.message);
-  }
-};
 </script>
 
 <style scoped>
 h1 {
   color: #dc3545;
 }
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px; /* Espaciado entre los filtros */
+.search-page {
+  padding: 20px;
+}
+
+.album-info {
   margin-bottom: 20px;
-}
-.filter-item {
-  flex: 1 1 200px; /* Ajusta el tamaño mínimo de los filtros */
-}
-.short-input {
-  width: 60px; /* Ajusta el ancho de los campos de entrada */
-}
-.song-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-  padding: 10px;
+  padding: 15px;
+  background-color: #f8f9fa;
   border: 1px solid #dee2e6;
   border-radius: 10px;
-  background-color: #f8f9fa;
 }
-.album-cover {
-  width: 85px; 
-  height: 85px;
-  margin-right: 20px;
-  border-radius: 5px;
+
+.album-info img {
+  margin-top: 10px;
+  width: 200px;
+  border-radius: 10px;
 }
-.song-info {
-  flex: 1;
+
+.songs {
+  margin-top: 20px;
 }
-.song-info p {
-  margin: 5px 0;
+
+.song-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
 }
-.listen-link {
-  color: #007bff; /* Color del enlace */
-  text-decoration: none; /* Quitar subrayado */
+
+.song-card {
+  padding: 10px;
+  border: 1px solid #007bff;
+  border-radius: 10px;
+  background-color: #e9ecef;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-.listen-link:hover {
-  color: #0056b3; /* Color del enlace al pasar el ratón */
-  text-decoration: underline; /* Subrayado al pasar el ratón */
-}
-li:hover {
-  background-color: blue;
-  color: white; /* Opcional: para cambiar el color del texto también */
+
+.song-card audio {
+  margin-top: 10px;
+  width: 100%;
 }
 </style>
