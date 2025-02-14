@@ -1,133 +1,89 @@
-<template>
-  <div>
-    <h1>Buscador</h1>
-    <p>Busca canciones, artistas o álbumes.</p>
-    <p>
-      En esta sección ya se ha configurado una llamada a la API pública de
-      Deezer.
-    </p>
-    <p>
-      Para que salgan los resultados debes entrar en
-      <a href="https://cors-anywhere.herokuapp.com/corsdemo"
-        >https://cors-anywhere.herokuapp.com/corsdemo</a
-      >
-    </p>
-  </div>
-  <div class="search-page">
-    <h1>Resultados del Álbum</h1>
-    <div class="album-info">
-      <h2>{{ albumData.title }}</h2>
-      <img :src="albumData.cover_medium" alt="Portada del álbum" />
-      <p><strong>Artista:</strong> {{ albumData.artist?.name }}</p>
-      <p><strong>Fecha de lanzamiento:</strong> {{ albumData.release_date }}</p>
-    </div>
-
-    <div class="songs">
-      <h3>Canciones</h3>
-      <div class="song-cards">
-        <div
-          v-for="song in albumData.tracks?.data"
-          :key="song.id"
-          class="song-card"
-        >
-          <p>
-            <strong>{{ song.title }}</strong>
-          </p>
-          <audio :src="song.preview" controls></audio>
-          <p>
-            <button @click="toggleFavorite(song)">
-              {{
-                isFavorite(song.id)
-                  ? "Quitar de favoritos"
-                  : "Añadir a favoritos"
-              }}
-            </button>
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup>
-import { ref, onMounted } from "vue";
-import { useFavoritesStore } from '@/stores/favorites';
+import { ref, watchEffect, nextTick } from "vue";
+import { useRoute } from "vue-router";
+import SearchResults from "@/components/SearchResults.vue";
+import MusicPlayer from "@/components/MusicPlayer.vue"; // 📌 Importamos el reproductor de música
 
-const albumData = ref({}); // Guardará los datos del álbum
-const favoritesStore = useFavoritesStore();
 
+const ruta = useRoute();
+const consulta = ref(""); // Captura la búsqueda actual desde la URL
+const canciones = ref([]);
+const albumes = ref([]);
+const artistas = ref([]);
+const cargando = ref(false);
+const error = ref("");
 
-// Función para obtener datos del álbum desde la API de Deezer
-const fetchAlbumData = async () => {
+// Proxy para evitar bloqueos de CORS
+const PROXY_URL = "http://localhost:8080/";
+
+// Función para buscar en la API de Deezer
+const buscar = async (query) => {
+  if (!query.trim()) {
+    error.value = "No se ingresó ninguna búsqueda.";
+    return;
+  }
+  consulta.value = query; // Actualiza la búsqueda
+  cargando.value = true;
+  error.value = "";
+
   try {
-    const response = await fetch(
-      "https://cors-anywhere.herokuapp.com/https://api.deezer.com/album/586206062"
-    );
-    if (!response.ok) throw new Error("Error al obtener los datos");
-    albumData.value = await response.json();
-  } catch (error) {
-    console.error("Error:", error);
+    console.log(`🔍 Buscando en Deezer con: "${query}"`);
+
+    // Esperar a que Vue termine de actualizar el DOM antes de hacer las peticiones
+    await nextTick();
+
+    // Hacemos 3 peticiones separadas: Canciones, Álbumes y Artistas con Proxy
+    const [resCanciones, resAlbumes, resArtistas] = await Promise.all([
+      fetch(`${PROXY_URL}https://api.deezer.com/search/track?q=${query}`).then((res) => res.json()),
+      fetch(`${PROXY_URL}https://api.deezer.com/search/album?q=${query}`).then((res) => res.json()),
+      fetch(`${PROXY_URL}https://api.deezer.com/search/artist?q=${query}`).then((res) => res.json()),
+    ]);
+
+    // Verificamos si los datos existen antes de asignarlos
+    canciones.value = resCanciones?.data?.length ? resCanciones.data : [];
+    albumes.value = resAlbumes?.data?.length ? resAlbumes.data : [];
+    artistas.value = resArtistas?.data?.length ? resArtistas.data : [];
+
+    console.log("📥 Resultados obtenidos:", {
+      canciones: canciones.value.length,
+      albumes: albumes.value.length,
+      artistas: artistas.value.length,
+    });
+
+    // Verificamos si la API devolvió resultados vacíos
+    if (!resArtistas?.data?.length) {
+      console.warn("⚠️ No se encontraron artistas para esta búsqueda.");
+    }
+  } catch (err) {
+    error.value = "Error al obtener los datos de Deezer.";
+    console.error("❌ Error en la búsqueda:", err);
+  } finally {
+    cargando.value = false;
   }
 };
 
-// Llama a la función al montar el componente
-onMounted(fetchAlbumData);
-
-const toggleFavorite = (song) => {
-  if (favoritesStore.isFavorite(song.id)) {
-    favoritesStore.removeSong(song.id);
-  } else {
-    favoritesStore.addSong(song);
-  }
-};
-
-const isFavorite = (id) => favoritesStore.isFavorite(id);
-
+// 🔄 Observa cambios en la URL para actualizar la búsqueda
+watchEffect(() => {
+  consulta.value = ruta.query.q || "";
+  if (consulta.value) buscar(consulta.value);
+});
 </script>
 
-<style scoped>
-h1 {
-  color: #dc3545;
-}
-.search-page {
-  padding: 20px;
-}
+<template>
+  <div class="container mt-4">
 
-.album-info {
-  margin-bottom: 20px;
-  padding: 15px;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 10px;
-}
+    <!-- Mostrar mensaje de carga -->
+    <div v-if="cargando" class="text-center">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+    </div>
 
-.album-info img {
-  margin-top: 10px;
-  width: 200px;
-  border-radius: 10px;
-}
+    <!-- Mostrar mensaje de error -->
+    <p v-if="error" class="text-danger text-center">{{ error }}</p>
 
-.songs {
-  margin-top: 20px;
-}
+    <!-- Mostrar los resultados de la búsqueda -->
+    <SearchResults v-if="!cargando" :canciones="canciones" :albumes="albumes" :artistas="artistas" />
 
-.song-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-}
-
-.song-card {
-  padding: 10px;
-  border: 1px solid #007bff;
-  border-radius: 10px;
-  background-color: #e9ecef;
-  text-align: center;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.song-card audio {
-  margin-top: 10px;
-  width: 100%;
-}
-</style>
+  </div>
+</template>
